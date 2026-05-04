@@ -1,3 +1,8 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
 import flet as ft
 from data.db import init_db
 from ui.home_view import build_home_view

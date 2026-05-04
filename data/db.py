@@ -1,5 +1,4 @@
 import sqlite3
-import os
 
 DB_NAME = "financetracker.db"
 
@@ -17,73 +16,77 @@ def init_db():
             amount      REAL    NOT NULL,
             category    TEXT    NOT NULL,
             type        TEXT    NOT NULL,
-            date        TEXT    NOT NULL
+            date        TEXT    NOT NULL,
+            status      TEXT    NOT NULL DEFAULT 'pending'
         )
     """)
 
+    # Safely add status column if upgrading from older DB
+    try:
+        cursor.execute("ALTER TABLE transactions ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'")
+    except:
+        pass
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS budgets (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            category TEXT    NOT NULL,
-            limit_amount   REAL    NOT NULL
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            category     TEXT    NOT NULL,
+            limit_amount REAL    NOT NULL
         )
     """)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS members (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            name          TEXT NOT NULL,
-            email         TEXT NOT NULL,
-            membership_id TEXT NOT NULL
+            name          TEXT    NOT NULL,
+            email         TEXT    NOT NULL,
+            membership_id TEXT    NOT NULL UNIQUE
         )
     """)
 
-    # Seed transactions if empty
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS member_budgets (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            assignment_id   TEXT    NOT NULL UNIQUE,
+            membership_id   TEXT    NOT NULL,
+            category        TEXT    NOT NULL,
+            assigned_limit  REAL    NOT NULL,
+            start_date      TEXT    NOT NULL,
+            active          INTEGER NOT NULL DEFAULT 1
+        )
+    """)
+
+    # Seed transactions
     cursor.execute("SELECT COUNT(*) FROM transactions")
     if cursor.fetchone()[0] == 0:
-        seed_transactions = [
-            ("Groceries",     85.50,   "Food",          "expense", "2026-03-01"),
-            ("Salary",        3000.00, "Salary",        "income",  "2026-03-01"),
-            ("Netflix",       15.99,   "Entertainment", "expense", "2026-03-02"),
-            ("Electric Bill", 120.00,  "Bills",         "expense", "2026-03-03"),
-            ("Uber",          25.50,   "Transport",     "expense", "2026-03-04"),
-            ("Freelance",     500.00,  "Salary",        "income",  "2026-03-05"),
-            ("Coffee",        12.00,   "Food",          "expense", "2026-03-06"),
-            ("Gym",           40.00,   "Health",        "expense", "2026-03-07"),
-            ("Bonus",         200.00,  "Salary",        "income",  "2026-03-08"),
-            ("Internet Bill", 60.00,   "Bills",         "expense", "2026-03-09"),
-        ]
         cursor.executemany(
-            "INSERT INTO transactions (description, amount, category, type, date) VALUES (?,?,?,?,?)",
-            seed_transactions
+            "INSERT INTO transactions (description, amount, category, type, date, status) VALUES (?,?,?,?,?,?)",
+            [
+                ("Groceries",     85.50,   "Food",          "expense", "2026-03-01", "confirmed"),
+                ("Salary",        3000.00, "Salary",        "income",  "2026-03-01", "confirmed"),
+                ("Netflix",       15.99,   "Entertainment", "expense", "2026-03-02", "confirmed"),
+                ("Electric Bill", 120.00,  "Bills",         "expense", "2026-03-03", "confirmed"),
+                ("Uber",          25.50,   "Transport",     "expense", "2026-03-04", "confirmed"),
+                ("Freelance",     500.00,  "Salary",        "income",  "2026-03-05", "confirmed"),
+                ("Coffee",        12.00,   "Food",          "expense", "2026-03-06", "pending"),
+                ("Gym",           40.00,   "Health",        "expense", "2026-03-07", "pending"),
+                ("Bonus",         200.00,  "Salary",        "income",  "2026-03-08", "pending"),
+                ("Internet Bill", 60.00,   "Bills",         "expense", "2026-03-09", "pending"),
+            ]
         )
 
-    # Seed budgets if empty
+    # Seed budgets
     cursor.execute("SELECT COUNT(*) FROM budgets")
     if cursor.fetchone()[0] == 0:
-        seed_budgets = [
-            ("Food",          300.00),
-            ("Transport",     100.00),
-            ("Entertainment",  50.00),
-            ("Bills",         200.00),
-            ("Health",        100.00),
-        ]
         cursor.executemany(
             "INSERT INTO budgets (category, limit_amount) VALUES (?,?)",
-            seed_budgets
-        )
-
-    # Seed members if empty
-    cursor.execute("SELECT COUNT(*) FROM members")
-    if cursor.fetchone()[0] == 0:
-        seed_members = [
-            ("Alice Johnson", "alice@email.com", "MBR-001"),
-            ("Bob Smith",     "bob@email.com",   "MBR-002"),
-            ("Carol White",   "carol@email.com", "MBR-003"),
-        ]
-        cursor.executemany(
-            "INSERT INTO members (name, email, membership_id) VALUES (?,?,?)",
-            seed_members
+            [
+                ("Food",          300.00),
+                ("Transport",     100.00),
+                ("Entertainment",  50.00),
+                ("Bills",         200.00),
+                ("Health",        100.00),
+            ]
         )
 
     conn.commit()

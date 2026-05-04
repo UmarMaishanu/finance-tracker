@@ -8,4 +8,5 @@ class Transaction:
     category:         str
     transaction_type: str
     date:             str
+    status:           str = "pending"
     id:               Optional[int] = None
